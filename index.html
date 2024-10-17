@@ -2,64 +2,121 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Jam1e.org - Bitcoin</title>
+    <title>Jam1e Chess with Stockfish</title>
+    <!-- Chessboard.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/css/chessboard.min.css" integrity="sha512-GXz2J77s6jZo6sG44mXSMUpCAuY3iwCqURiRCi/HwYJJrRdFvE+f4e0XasovE4Lkku1JMvAYXqcB+quc+Nw8Tw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-            text-align: center;
-        }
-        .header {
-            background-color: #ffb300;
             padding: 20px;
-            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        .bitcoin-graphic {
-            margin: 50px 0;
+        #board {
+            width: 400px;
         }
-        .bitcoin-graphic img {
-            max-width: 300px;
-            height: auto;
+        #info {
+            margin-top: 20px;
+            width: 400px;
         }
-        .video-container {
-            margin: 50px 0;
-        }
-        iframe {
-            width: 80%;
-            height: 450px;
-        }
-        footer {
-            padding: 20px;
-            background-color: #000;
-            color: #fff;
-            position: absolute;
-            width: 100%;
-            bottom: 0;
+        button {
+            margin: 5px;
         }
     </style>
 </head>
 <body>
-
-    <div class="header">
-        <h1>Jam1e.org - Bitcoin</h1>
-        <p>Dedicated to the Future of Money</p>
+    <h1>Jam1e Chess with Stockfish</h1>
+    <div id="board"></div>
+    <div id="info">
+        <button id="newGame">New Game</button>
+        <button id="undoMove">Undo Move</button>
+        <p><strong>Stockfish's Best Move:</strong> <span id="bestMove">N/A</span></p>
     </div>
 
-    <div class="bitcoin-graphic">
-        <img src="img/bitcoin-graphic.png.webp" alt="Bitcoin Graphic">
-    </div>
+    <!-- Chess.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js" integrity="sha512-GsNqTT9kXAXcXMFxgPtkMpjKqbeqZv4mAvL8wIRR4zELNMIu+7Zx0c7/+R19E/NcQ6vgwxZWUK8vDE4HmMbnhA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- Chessboard.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/js/chessboard.min.js" integrity="sha512-ryGZUVw+SVgLQPmCW1VXLpVPPEJy6oxXkVqPYkqrZbe24cTfZ+qszD7Yf6xgDn60kPpWV4osXPEFkpnhf3Fg5Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- Stockfish -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stockfish/15.1.0/stockfish.js" integrity="sha512-+cKyhZHo/jEo5O1W4XbJ38iXiUbWc6wTHaQkCMcEaWfTkRccV1F9BNICRs6AptJa70mv4LGlWw8XGgSPg/mrGw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    
+    <script>
+        // Initialize Chess.js
+        const chess = new Chess();
 
-    <div class="video-container">
-        <iframe width="560" height="315" src="https://www.youtube.com/embed/5RVkQ743rU8?si=xojHkpN_eT2n1ZWI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-    </div>
+        // Initialize Chessboard.js
+        const board = Chessboard('board', {
+            draggable: true,
+            position: 'start',
+            onDrop: handleMove,
+            onSnapEnd: updateBoard
+        });
 
-    <footer>
-        <p>© 2024 Jam1e.org - All Rights Reserved</p>
-    </footer>
+        // Initialize Stockfish
+        const stockfish = new Worker('https://cdnjs.cloudflare.com/ajax/libs/stockfish/15.1.0/stockfish.js');
 
+        // Configure Stockfish
+        stockfish.postMessage('uci');
+
+        stockfish.onmessage = function(event) {
+            const line = event.data;
+
+            if (line === 'uciok' || line === 'readyok') {
+                return;
+            }
+
+            if (line.startsWith('bestmove')) {
+                const bestMove = line.split(' ')[1];
+                document.getElementById('bestMove').innerText = bestMove;
+            }
+        };
+
+        // Function to handle piece drops
+        function handleMove(source, target, piece, newPos, oldPos, orientation) {
+            // Attempt to make the move
+            const move = chess.move({
+                from: source,
+                to: target,
+                promotion: 'q' // Automatically promote to a queen
+            });
+
+            // Illegal move
+            if (move === null) return 'snapback';
+
+            updateStockfish();
+        }
+
+        // Function to update the board position after a move
+        function updateBoard() {
+            board.position(chess.fen());
+        }
+
+        // Function to send the current position to Stockfish and get the best move
+        function updateStockfish() {
+            // Reset Stockfish
+            stockfish.postMessage('ucinewgame');
+            stockfish.postMessage('position fen ' + chess.fen());
+            stockfish.postMessage('go depth 15'); // You can adjust the depth for stronger analysis
+        }
+
+        // New Game Button
+        document.getElementById('newGame').addEventListener('click', () => {
+            chess.reset();
+            board.start();
+            document.getElementById('bestMove').innerText = 'N/A';
+        });
+
+        // Undo Move Button
+        document.getElementById('undoMove').addEventListener('click', () => {
+            chess.undo();
+            chess.undo(); // Undo both player's and Stockfish's moves
+            board.position(chess.fen());
+            document.getElementById('bestMove').innerText = 'N/A';
+        });
+
+        // Initialize Stockfish with the starting position
+        updateStockfish();
+    </script>
 </body>
 </html>
