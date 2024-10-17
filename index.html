@@ -109,7 +109,7 @@
     </style>
 </head>
 <body>
-    <h1>Jam1e Chess with Stockfish</h1>
+    <h1>Chess with Stockfish</h1>
     <!-- Optional: Toggle Switch for Dark/Light Mode -->
     <!--
     <div class="toggle-switch">
@@ -165,7 +165,12 @@
         let stockfish;
         if (typeof Worker !== 'undefined') {
             fetch('https://cdnjs.cloudflare.com/ajax/libs/stockfish/15.1.0/stockfish.js')
-                .then(response => response.text())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
                 .then(script => {
                     const blob = new Blob([script], { type: 'application/javascript' });
                     const blobURL = URL.createObjectURL(blob);
